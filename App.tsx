@@ -1,12 +1,20 @@
 import { Feather } from "@expo/vector-icons";
+import Voice, { SpeechResultsEvent } from "@react-native-voice/voice";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
-
-import Voice, { SpeechResultsEvent } from "@react-native-voice/voice";
+import {
+  Dimensions,
+  LogBox,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+LogBox.ignoreLogs(["new NativeEventEmitter"]);
+LogBox.ignoreAllLogs();
 
 export default function App() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState("Pergunte alguma coisa...");
   const [isListening, setIsListening] = useState(false);
   const { height } = Dimensions.get("window");
 
@@ -15,16 +23,20 @@ export default function App() {
     setSearch(text.join().replace(",", " "));
   }
 
-  async function handleListening() {
+  async function startListening() {
     try {
-      if (isListening) {
-        await Voice.stop();
-        setIsListening(false);
-      } else {
-        setSearch("");
-        await Voice.start("pt-BR");
-        setIsListening(true);
-      }
+      setSearch("");
+      await Voice.start("pt-BR");
+      setIsListening(true);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async function stopListening() {
+    try {
+      await Voice.stop();
+      setIsListening(false);
     } catch (error) {
       console.log(error);
     }
@@ -32,6 +44,15 @@ export default function App() {
 
   useEffect(() => {
     Voice.onSpeechResults = onSpeechResults;
+
+    Voice.onSpeechEnd = () => {
+      setSearch("Pergunte alguma coisa...");
+      setIsListening(false);
+    };
+
+    return () => {
+      Voice.removeAllListeners();
+    };
   }, []);
 
   return (
@@ -43,7 +64,12 @@ export default function App() {
           {isListening ? "Gravando..." : search}
         </Text>
       </View>
-      <Pressable style={styles.button} onPress={handleListening}>
+
+      <Pressable
+        style={styles.button}
+        onPressIn={startListening}
+        onPressOut={stopListening}
+      >
         <Feather name={isListening ? "pause" : "mic"} color="#FFF" size={24} />
       </Pressable>
     </View>
